@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>User Behavior</title>
+    <link href="./jsonThemes/jsoneditor.css" rel="stylesheet" type="text/css">
+    <script src="./jsonThemes/jsoneditor.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+          integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+            integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
+            integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN"
+            crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
+            integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script>
+    <style>
+        #jsoneditor {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body style="padding: 10px;">
+<div>
+    <span id="socketState">
+        {{socketState}}
+    </span>
+    <select id="devices" v-on:change="onChange" style="width: 260px;margin-left: 40px;">
+        <option v-for="(item, index) in items" v-bind:name="item.uid">
+            {{item.name}}
+        </option>
+    </select>
+    <span style="margin-left: 20px;">选中的设备：</span>
+    <span id="deviceSelected">
+        {{name}}
+    </span>
+    <input type="button" value="clear" onclick="clearList()" style="margin-left: 20px;"/>
+</div>
+
+<div style="width: 100%;height: 880px;margin-top: 20px;" class="d-flex flex-row">
+    <div id="list" style="width: 20%; height: 100%;" class="overflow-auto;">
+        <div v-for="(item,index) in items" style="margin: 10px;word-break: break-all;">
+            <a href="#" style="font-size: large;font-size: 16px;" v-on:click="showJson(item)">
+                {{items.length - index}}: {{item.eventId}}
+            </a>
+        </div>
+    </div>
+    <div style="width: 80%; height: 100%;">
+        <div title="Json" style="padding:10px;width: 100%;height: 100%;">
+            <div style="width: 100%;height: 100%;" id="jsoneditor"></div>
+        </div>
+    </div>
+</div>
+
+</body>
+<script type="text/javascript">
+
+    var jsoneditor = document.getElementById('jsoneditor');
+
+    var options = {
+        mode: 'view',
+        modes: ['text', 'code', 'view'],
+        onEditable: function (node) {
+            return false;
+        }
+    };
+    // 显示 json 的
+    var editor = new JSONEditor(jsoneditor, options);
+
+    var socketState = new Vue({
+        el: '#socketState',
+        data: {
+            socketState: "未连接"
+        },
+        methods: {
+            setState(state) {
+                this.socketState = state
+            }
+        }
+    })
+
+    var devices = new Vue({
+        el: '#devices',
+        data: {
+            items: []
+        },
+        methods: {
+            onChange: function (event) {
+                deviceSelected.setUid(this.items[event.target.selectedIndex].uid)
+                deviceSelected.setName(this.items[event.target.selectedIndex].name)
+            },
+            addItem: function (data) {
+                this.items.push(data)
+            },
+            clearAll: function () {
+                this.items = []
+            },
+            assign: function (list) {
+                this.items = list
+            }
+        }
+    })
+
+    var deviceSelected = new Vue({
+        el: '#deviceSelected',
+        data: {
+            uid: "",
+            name: "none"
+        },
+        methods: {
+            setUid: function (targetValue) {
+                this.uid = targetValue
+            },
+            setName: function (targetValue) {
+                this.name = targetValue
+            }
+        }
+    })
+
+    var list = new Vue({
+        el: '#list',
+        data: {
+            items: []
+        },
+        methods: {
+            showJson: function (content) {
+                if (typeof content == "string") {
+                    editor.set(eval('(' + content + ')'));
+                } else {
+                    editor.set(content);
+                }
+                editor.expandAll();
+            },
+            addItem: function (data) {
+                this.items.unshift(data)
+                var size = this.items.size
+                for (var i = 0; i < size; i++) {
+                    this.items[i].number = size - i + 1
+                }
+            },
+            clearAll: function () {
+                this.items = []
+            }
+        }
+    })
+
+    var websocket = null;
+    //判断当前浏览器是否支持WebSocket
+    if ('WebSocket' in window) {
+        websocket = new WebSocket("ws://10.0.32.67:23457/serverLog/client");
+        // websocket = new WebSocket("ws://10.0.24.86:18080/serverLog/client");
+    } else {
+        alert('当前浏览器 Not support websocket')
+    }
+
+    //连接发生错误的回调方法
+    websocket.onerror = function () {
+        document.getElementById('socketState').innerText = "WebSocket连接发生错误";
+    };
+
+    //连接成功建立的回调方法
+    websocket.onopen = function () {
+        socketState.setState("连接成功");
+        var message = {type: "setSubscribeTypes", data: ['userBehavior', 'providerList@userBehavior']}
+        websocket.send(JSON.stringify(message));
+    }
+
+    websocket.onclose = function () {
+        socketState.setState("关闭啦");
+    }
+
+    // 接收到消息的回调方法
+    websocket.onmessage = function (event) {
+        console.log(event.data)
+        var data = JSON.parse(event.data);
+        // 数据类型
+        var type = data.type;
+        if ("userBehavior" == type) {
+            var devices_select = document.getElementById("devices")
+            var selectedIndex = devices_select.selectedIndex
+            if (selectedIndex >= 0) {
+                if (deviceSelected.name == data.owner.name) {
+                    list.addItem(data.data);
+                }
+            }
+        } else if ("providerList@userBehavior" == type) {
+            devices.clearAll()
+            devices.assign(data.data)
+        }
+    }
+
+    function clearList() {
+        list.clearAll()
+    }
+
+</script>
+<script type="text/javascript">
+</script>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>test Log For IOS</title>
+</head>
+<body>
+
+<form enctype="application/x-www-form-urlencoded" method="post" action="http://192.168.5.105:8080/serverLog/network/log">
+
+    <textarea name="data" style="width: 600px;height: 400px;">
+{
+    'action':'network',
+    'selfTag':'selfTag',
+    'data':{
+        'req_method':'POST',
+        'req_url':'www.baidu.com',
+        'req_headers':['req_header1=1','req_header2=2','req_header3=3'],
+        'req_body':'我是请求body,可以是一个json数据',
+        'res_code':'200',
+        'res_message':'ok',
+        'res_headers':['res_header1=1','res_header2=2','res_header3=3'],
+        'res_body':'我是响应body,可以是一个json数据'
+    }
+}
+    </textarea>
+
+    <input type="submit" value="提交请求"/>
+
+</form>
+
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Android Log</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12"></script>
+
+</head>
+
+<body id="body_id" style="width: 100%">
+
+<div id="content">
+
+    <span>连接状态：</span>
+    <span id="socketState">None</span>
+
+    <button style="margin-left: 20px;" v-on:click="cleanAllLog">chean</button>
+
+    <div id="log_content">
+        <div v-for="item in logList">
+            <span>{{ item.level }}</span>
+            <span>{{ item.tag }}</span>
+            <span>{{ item.content }}</span>
+        </div>
+    </div>
+
+</div>
+
+</body>
+
+<script type="text/javascript">
+
+    var content = new Vue({
+        el: '#content',
+        data: {
+            logList: []
+        },
+        methods: {
+            cleanAllLog: function (event) {
+                this.logList = []
+            }
+        }
+    })
+
+</script>
+
+<script type="text/javascript">
+
+    var websocket = null;
+
+    //判断当前浏览器是否支持WebSocket
+    if ('WebSocket' in window) {
+        // websocket = new WebSocket("ws://10.0.32.67:18080/serverLog/client");
+        websocket = new WebSocket("ws://10.0.32.67:23457/serverLog/client");
+        // websocket = new WebSocket("ws://10.0.29.58:18080/serverLog/client");
+    } else {
+        alert('当前浏览器 Not support websocket')
+    }
+
+    //连接发生错误的回调方法
+    websocket.onerror = function () {
+        document.getElementById('socketState').innerText = "WebSocket连接发生错误";
+    };
+
+    //连接成功建立的回调方法
+    websocket.onopen = function () {
+        document.getElementById('socketState').innerText = "连接成功";
+        var message = {type: "setSubscribeTypes", data: ['androidLog', 'providerList@androidLog']}
+        websocket.send(JSON.stringify(message));
+    }
+
+    websocket.onclose = function () {
+        document.getElementById('socketState').innerText = "连接关闭";
+    }
+
+    // 接收到消息的回调方法
+    websocket.onmessage = function (event) {
+        console.log("event.data = " + event.data)
+        let wrapData = JSON.parse(event.data);
+        if (wrapData.type == 'androidLog') {
+            let logContent = wrapData.data
+            content.logList.push({level: logContent.level, tag: logContent.tag, content: logContent.content});
+        }
+    }
+
+    // 连接关闭的回调方法
+    websocket.onclose = function () {
+        document.getElementById('socketState').innerText = "WebSocket连接关闭";
+    }
+
+    //监听窗口关闭事件，当窗口关闭时，主动去关闭websocket连接，防止连接还没断开就关闭窗口，server端会抛异常。
+    window.onbeforeunload = function () {
+        closeWebSocket();
+    }
+
+    //关闭WebSocket连接
+    function closeWebSocket() {
+        websocket.close();
+    }
+
+</script>
+
+</html>
